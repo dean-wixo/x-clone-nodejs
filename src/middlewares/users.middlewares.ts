@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express'
 import { checkSchema } from 'express-validator'
-import { validate } from '../validation'
+import { validate } from '../utils/validation'
 import usersService from '../services/users.services'
+import { ErrorWithStatus } from '../models/Errors'
 
 export const loginValidator = (req: Request, res: Response, next: NextFunction) => {
   const { email, password } = req.body
@@ -13,6 +14,7 @@ export const loginValidator = (req: Request, res: Response, next: NextFunction) 
   next()
 }
 
+// 422: Validation error
 export const registerValidator = validate(
   checkSchema({
     name: {
@@ -33,7 +35,7 @@ export const registerValidator = validate(
         options: async (email) => {
           const isEmailExisted = await usersService.checkEmailExists(email)
           if (isEmailExisted) {
-            throw new Error('Email already in use')
+            throw new ErrorWithStatus({ message: 'Email already in use', status: 422 })
           }
           return true
         }

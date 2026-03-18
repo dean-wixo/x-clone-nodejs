@@ -1,7 +1,7 @@
 import { TokenType } from '../constants/enums'
-import { hashPassword } from '../crypto'
-import { signToken } from '../jwt'
-import { RegisterRequestBody } from '../models/schemas/requests/User.requests'
+import { hashPassword } from '../utils/crypto'
+import { signToken } from '../utils/jwt'
+import { RegisterRequestBody } from '../models/requests/User.requests'
 import User from '../models/schemas/User.schema'
 import databaseService from './database.services'
 
