@@ -1,5 +1,8 @@
 import jwt, { SignOptions } from 'jsonwebtoken'
+import { config } from 'dotenv'
+import { TokenPayload } from '../models/requests/User.requests'
 
+config()
 type SignTokenOptions = Omit<SignOptions, 'expiresIn'> & { expiresIn?: string | number }
 
 export const signToken = ({
@@ -16,10 +19,26 @@ export const signToken = ({
   return new Promise<string>((resolve, reject) => {
     jwt.sign(payload, privateKey, options as SignOptions, (error, token) => {
       if (error) {
-        reject(error)
-      } else {
-        resolve(token as string)
+        throw reject(error)
       }
+      resolve(token as string)
+    })
+  })
+}
+
+export const verifyToken = ({
+  token,
+  secretOrPublicKey = process.env.JWT_SECRET as string
+}: {
+  token: string
+  secretOrPublicKey?: string
+}) => {
+  return new Promise<TokenPayload>((resolve, reject) => {
+    jwt.verify(token, secretOrPublicKey, { algorithms: ['HS256'] }, (error, decoded) => {
+      if (error) {
+        throw reject(error)
+      }
+      resolve(decoded as TokenPayload)
     })
   })
 }

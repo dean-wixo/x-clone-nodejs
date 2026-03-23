@@ -4,6 +4,10 @@ import { signToken } from '../utils/jwt'
 import { RegisterRequestBody } from '../models/requests/User.requests'
 import User from '../models/schemas/User.schema'
 import databaseService from './database.services'
+import { ObjectId } from 'mongodb'
+import { config } from 'dotenv'
+
+config()
 
 class UsersService {
   private signAccessToken(user_id: string) {
@@ -37,7 +41,25 @@ class UsersService {
       this.signAccessToken(user_id),
       this.signRefreshToken(user_id)
     ])
+    databaseService.refreshTokens.insertOne({
+      token: refresh_token,
+      user_id: new ObjectId(user_id)
+    })
     return { ...result, access_token, refresh_token }
+  }
+  async login(user_id: string) {
+    const [access_token, refresh_token] = await Promise.all([
+      this.signAccessToken(user_id),
+      this.signRefreshToken(user_id)
+    ])
+    databaseService.refreshTokens.insertOne({
+      token: refresh_token,
+      user_id: new ObjectId(user_id)
+    })
+    return { access_token, refresh_token }
+  }
+  async logout(refresh_token: string) {
+    await databaseService.refreshTokens.deleteOne({ token: refresh_token })
   }
   async checkEmailExists(email: string) {
     const user = await databaseService.users.findOne({ email })
