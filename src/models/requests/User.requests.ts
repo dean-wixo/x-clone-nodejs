@@ -6,6 +6,11 @@ export interface RegisterRequestBody {
   date_of_birth: string
 }
 
+export interface LoginReqBody {
+  email: string
+  password: string
+}
+
 export interface TokenPayload {
   user_id: string
   token_type: string
@@ -15,4 +20,8 @@ export interface TokenPayload {
 
 export interface LogoutReqBody {
   refresh_token: string
+}
+
+export interface VerifyEmailReqBody {
+  email_verify_token: string
 }
