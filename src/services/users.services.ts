@@ -7,6 +7,7 @@ import { hashPassword } from '../utils/crypto'
 import { signToken } from '../utils/jwt'
 import databaseService from './database.services'
 import RefreshToken from '../models/requests/RefreshToken.schema'
+import { ErrorWithStatus } from '../models/Errors'
 
 config()
 
@@ -47,6 +48,18 @@ class UsersService {
       privateKey: process.env.JWT_SECRET_EMAIL_VERIFY_TOKEN as string,
       options: {
         expiresIn: (process.env.EMAIL_VERIFY_TOKEN_EXPIRES_IN || '7d') as string
+      }
+    })
+  }
+  private signForgotPasswordToken(user_id: string) {
+    return signToken({
+      payload: {
+        user_id,
+        token_type: TokenType.ForgotPasswordToken
+      },
+      privateKey: process.env.JWT_SECRET_FORGOT_PASSWORD_TOKEN as string,
+      options: {
+        expiresIn: (process.env.FORGOT_PASSWORD_TOKEN_EXPIRES_IN || '1h') as string
       }
     })
   }
@@ -131,6 +144,30 @@ class UsersService {
     return {
       message: 'Resend email verification successful'
     }
+  }
+  async forgotPassword(user_id: string) {
+    const forgot_password_token = await this.signForgotPasswordToken(user_id)
+    console.log('Forgot password token:', forgot_password_token) // Log token for testing
+    await databaseService.users.updateOne(
+      { _id: new ObjectId(user_id) },
+      {
+        $set: { forgot_password_token },
+        $currentDate: { updated_at: true }
+      }
+    )
+  }
+  async resetPassword(user_id: string, new_password: string, forgot_password_token: string) {
+    const user = await databaseService.users.findOne({ _id: new ObjectId(user_id) })
+    if (!user || user.forgot_password_token !== forgot_password_token) {
+      throw new ErrorWithStatus({ message: 'Invalid forgot password token', status: 422 })
+    }
+    await databaseService.users.updateOne(
+      { _id: new ObjectId(user_id) },
+      {
+        $set: { password: hashPassword(new_password), forgot_password_token: '' },
+        $currentDate: { updated_at: true }
+      }
+    )
   }
 }
 

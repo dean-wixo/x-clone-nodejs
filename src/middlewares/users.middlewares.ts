@@ -1,13 +1,43 @@
 import { Request } from 'express'
-import { checkSchema } from 'express-validator'
-import databaseService from '../services/database.services'
-import { hashPassword } from '../utils/crypto'
-import { validate } from '../utils/validation'
-import { verifyToken } from '../utils/jwt'
-import { ErrorWithStatus } from '../models/Errors'
+import { checkSchema, Meta } from 'express-validator'
 import { JsonWebTokenError } from 'jsonwebtoken'
 import { capitalize } from 'lodash'
 import HTTP_STATUS from '../constants/httpStatus'
+import { ErrorWithStatus } from '../models/Errors'
+import databaseService from '../services/database.services'
+import { hashPassword } from '../utils/crypto'
+import { verifyToken } from '../utils/jwt'
+import { validate } from '../utils/validation'
+
+const passwordSchema = {
+  notEmpty: true,
+  isString: true,
+  isLength: {
+    options: {
+      min: 6,
+      max: 100
+    }
+  },
+  isStrongPassword: {
+    errorMessage:
+      'Password must be at least 6 characters long and contain at least one lowercase letter, one uppercase letter, one number, and one symbol',
+    options: {
+      minLength: 6,
+      minLowercase: 1,
+      minUppercase: 1,
+      minNumbers: 1,
+      minSymbols: 1
+    }
+  }
+}
+
+const confirmPasswordSchema = {
+  ...passwordSchema,
+  custom: {
+    options: (value: string, { req }: Meta) => value === req.body.password,
+    errorMessage: 'Passwords do not match'
+  }
+}
 
 export const loginValidator = validate(
   checkSchema(
@@ -77,15 +107,11 @@ export const registerValidator = validate(
         notEmpty: true,
         isEmail: true,
         custom: {
-          options: async (value, { req }) => {
-            const user = await databaseService.users.findOne({
-              email: value,
-              password: hashPassword(req.body.password)
-            })
-            if (user === null) {
+          options: async (value) => {
+            const user = await databaseService.users.findOne({ email: value })
+            if (user) {
               throw new Error('Email is already in use')
             }
-            req.user = user
             return true
           }
         }
@@ -242,6 +268,68 @@ export const emailVerifyTokenValidator = validate(
               })
             }
 
+            return true
+          }
+        }
+      }
+    },
+    ['body']
+  )
+)
+
+export const forgotPasswordValidator = validate(
+  checkSchema(
+    {
+      email: {
+        notEmpty: {
+          errorMessage: 'Email is required'
+        },
+        isEmail: {
+          errorMessage: 'Email is invalid'
+        },
+        trim: true,
+        custom: {
+          options: async (value, { req }) => {
+            const user = await databaseService.users.findOne({ email: value })
+            if (!user) {
+              throw new ErrorWithStatus({
+                message: 'User with this email does not exist',
+                status: 404
+              })
+            }
+            req.user = user
+            return true
+          }
+        }
+      }
+    },
+    ['body']
+  )
+)
+
+export const resetPasswordValidator = validate(
+  checkSchema(
+    {
+      password: passwordSchema,
+      confirm_password: confirmPasswordSchema,
+      forgot_password_token: {
+        notEmpty: {
+          errorMessage: 'Forgot password token is required'
+        },
+        custom: {
+          options: async (value, { req }) => {
+            try {
+              const decoded = await verifyToken({
+                token: value,
+                secretOrPublicKey: process.env.JWT_SECRET_FORGOT_PASSWORD_TOKEN as string
+              })
+              ;(req as Request).decoded_forgot_password_token = decoded
+            } catch (error) {
+              throw new ErrorWithStatus({
+                message: capitalize((error as JsonWebTokenError).message),
+                status: HTTP_STATUS.UNAUTHORIZED
+              })
+            }
             return true
           }
         }

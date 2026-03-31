@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import { ParamsDictionary } from 'express-serve-static-core'
 import {
+  ForgotPasswordReqBody,
   LoginReqBody,
   LogoutReqBody,
   RegisterRequestBody,
@@ -77,5 +78,25 @@ export const resendEmailVerifyController = async (req: Request, res: Response) =
   return res.json({
     message: 'Resend email verification successful',
     result
+  })
+}
+
+export const forgotPasswordController = async (
+  req: Request<ParamsDictionary, any, ForgotPasswordReqBody>,
+  res: Response
+) => {
+  const { _id } = req.user!
+  await usersService.forgotPassword(_id!.toString())
+  return res.json({
+    message: 'Check your email for a password reset link'
+  })
+}
+
+export const resetPasswordController = async (req: Request, res: Response) => {
+  const { user_id } = req.decoded_forgot_password_token as TokenPayload
+  const { password, forgot_password_token } = req.body
+  await usersService.resetPassword(user_id, password, forgot_password_token)
+  return res.json({
+    message: 'Password reset successful'
   })
 }
