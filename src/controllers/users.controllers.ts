@@ -92,6 +92,10 @@ export const forgotPasswordController = async (
   })
 }
 
+export const verifyForgotPasswordController = async (req: Request, res: Response) => {
+  return res.json({ message: 'Forgot password token is valid' })
+}
+
 export const resetPasswordController = async (req: Request, res: Response) => {
   const { user_id } = req.decoded_forgot_password_token as TokenPayload
   const { password, forgot_password_token } = req.body
